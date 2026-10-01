@@ -55,6 +55,20 @@ instead of
 kubectl get issuers.cert-manager.io
 ```
 
+### Certificate Secret contents
+The issued certificate is stored in the Secret named by the Certificate's `secretName`:
+
+| Key | Contents |
+|---|---|
+| `tls.crt` | The leaf certificate followed by the Atlas intermediate CA(s), in order |
+| `tls.key` | The private key |
+| `ca.crt` | The Atlas root CA |
+
+Ingress controllers and web servers can use `tls.crt` directly, as it already contains the full chain.
+
+*Note: before v0.1.0, `tls.crt` contained only the leaf certificate and `ca.crt` contained the intermediates and root.
+Existing certificates use the new layout from their next renewal, or immediately with `cmctl renew <certificate>`.*
+
 ## Metrics
 The controller serves Prometheus metrics over HTTPS on port `8443`, exposed by the
 `atlas-issuer-controller-manager-metrics-service` Service. Requests are authenticated

@@ -163,21 +163,14 @@ func (o *hvcaSigner) Sign(csrBytes []byte) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 
-	// Convert CA Chain into PEM
-	var caChain []byte
-	for _, cert := range caChainList {
-		var certPEM = pem.EncodeToMemory(&pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: cert.Raw,
-		})
-
-		caChain = append(caChain, certPEM...)
+	// tls.crt gets the leaf followed by its intermediates, ca.crt gets the root
+	chain, ca, err := buildChain(info.X509, caChainList)
+	if err != nil {
+		return nil, nil, err
 	}
-
-	return pem.EncodeToMemory(&pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: info.X509.Raw,
-		}),
-		caChain,
-		nil
+	var caPEM []byte
+	if ca != nil {
+		caPEM = encodePEM(ca)
+	}
+	return encodePEM(chain...), caPEM, nil
 }
