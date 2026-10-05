@@ -21,7 +21,7 @@ type HealthChecker interface {
 type HealthCheckerBuilder func(*sampleissuerapi.IssuerSpec, map[string][]byte) (HealthChecker, error)
 
 type Signer interface {
-	Sign([]byte) ([]byte, []byte, error)
+	Sign(context.Context, []byte) ([]byte, []byte, error)
 }
 
 type SignerBuilder func(*sampleissuerapi.IssuerSpec, map[string][]byte) (Signer, error)
@@ -67,8 +67,8 @@ func (o *hvcaSigner) Check() error {
 	return nil
 }
 
-func (o *hvcaSigner) Sign(csrBytes []byte) ([]byte, []byte, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+func (o *hvcaSigner) Sign(ctx context.Context, csrBytes []byte) ([]byte, []byte, error) {
+	ctx, cancel := context.WithCancel(ctx)
 	var clnt *hvclient.Client
 	var serial *big.Int
 	var info *hvclient.CertInfo
@@ -163,14 +163,6 @@ func (o *hvcaSigner) Sign(csrBytes []byte) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 
-	// tls.crt gets the leaf followed by its intermediates, ca.crt gets the root
-	chain, ca, err := buildChain(info.X509, caChainList)
-	if err != nil {
-		return nil, nil, err
-	}
-	var caPEM []byte
-	if ca != nil {
-		caPEM = encodePEM(ca)
-	}
-	return encodePEM(chain...), caPEM, nil
+	certPEM, caPEM := bundle(ctx, info.X509, caChainList)
+	return certPEM, caPEM, nil
 }

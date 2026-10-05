@@ -38,8 +38,7 @@ type fakeSigner struct {
 	errSign error
 }
 
-func (o *fakeSigner) Sign([]byte) ([]byte, []byte, error) {
-
+func (o *fakeSigner) Sign(context.Context, []byte) ([]byte, []byte, error) {
 	return []byte("fake signed certificate"), []byte("fake ca chain"), o.errSign
 }
 

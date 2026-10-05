@@ -56,6 +56,7 @@ func init() {
 
 func main() {
 	var metricsAddr string
+	var legacyMetricsAddr string
 	var secureMetrics bool
 	var enableLeaderElection bool
 	var clusterResourceNamespace string
@@ -66,6 +67,8 @@ func main() {
 		"The address the metrics endpoint binds to. Use :8443 for HTTPS or :8080 for HTTP. Set to 0 to disable.")
 	flag.BoolVar(&secureMetrics, "metrics-secure", true,
 		"Serve metrics over HTTPS, protected by Kubernetes authentication and authorization.")
+	flag.StringVar(&legacyMetricsAddr, "metrics-addr", "",
+		"Deprecated: use --metrics-bind-address and --metrics-secure. Serves metrics over plain HTTP on the given address.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -86,6 +89,18 @@ func main() {
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	if legacyMetricsAddr != "" {
+		setupLog.Info("--metrics-addr is deprecated and will be removed in a future release, use --metrics-bind-address and --metrics-secure instead")
+		setFlags := map[string]bool{}
+		flag.Visit(func(f *flag.Flag) { setFlags[f.Name] = true })
+		if !setFlags["metrics-bind-address"] {
+			metricsAddr = legacyMetricsAddr
+			if !setFlags["metrics-secure"] {
+				secureMetrics = false
+			}
+		}
+	}
 
 	if clusterResourceNamespace == "" {
 		var err error
@@ -109,8 +124,6 @@ func main() {
 		"cluster-resource-namespace", clusterResourceNamespace,
 	)
 
-	// Metrics are protected by the controller-runtime authn/authz filter,
-	// which replaces the kube-rbac-proxy sidecar.
 	metricsOptions := metricsserver.Options{
 		BindAddress:   metricsAddr,
 		SecureServing: secureMetrics,
